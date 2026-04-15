@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import API from "../api/axios";
 import { useSelector } from "react-redux";
 
-const UserProfile = () => {
+const Profile = () => {
   const [profileData, setProfileData] = useState(null);
   const auth = useSelector((state) => state.auth);
   const currentUser = auth?.user?.user || auth?.user || {};
@@ -97,4 +97,4 @@ const UserProfile = () => {
   );
 };
 
-export default UserProfile;
+export default Profile;
