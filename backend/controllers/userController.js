@@ -1,6 +1,8 @@
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 
+
+
 export const createUser = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
@@ -21,15 +23,12 @@ export const createUser = async (req, res) => {
       email,
       password: hashed,
       role: role === "manager" ? "manager" : "user",
-      status: "active",
       createdBy: req.user.id,
     });
 
-    res.json({
-      msg: "User created successfully",
-      user,
-    });
+    res.json({ msg: "User created successfully", user });
   } catch (err) {
+    console.log(err);
     res.status(500).json({ msg: "Error creating user" });
   }
 };
@@ -37,7 +36,11 @@ export const createUser = async (req, res) => {
 
 export const getUsers = async (req, res) => {
   try {
-    const users = await User.find().select("-password");
+    const users = await User.find()
+      .select("-password")
+      .populate("createdBy", "name email")
+      .populate("updatedBy", "name email");
+
     res.json(users);
   } catch (err) {
     res.status(500).json({ msg: "Error fetching users" });
@@ -45,46 +48,89 @@ export const getUsers = async (req, res) => {
 };
 
 
+
 export const getProfile = async (req, res) => {
-  const user = await User.findById(req.user.id).select("-password");
-  res.json(user);
+  try {
+    const user = await User.findById(req.user.id)
+      .select("-password")
+      .populate("createdBy", "name")
+      .populate("updatedBy", "name");
+
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ msg: "Error fetching profile" });
+  }
 };
+
 
 
 export const updateProfile = async (req, res) => {
-  const user = await User.findById(req.user.id);
+  try {
+    const user = await User.findById(req.user.id);
 
-  user.name = req.body.name || user.name;
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
 
-  if (req.body.password) {
-    user.password = await bcrypt.hash(req.body.password, 10);
+    if (req.body.name) {
+      user.name = req.body.name;
+    }
+
+    if (req.body.password) {
+      user.password = await bcrypt.hash(req.body.password, 10);
+    }
+
+    user.updatedBy = req.user.id;
+
+    await user.save();
+
+    res.json({ msg: "Profile updated successfully" });
+  } catch (err) {
+    res.status(500).json({ msg: "Error updating profile" });
   }
-
-  await user.save();
-
-  res.json({ msg: "Profile updated successfully" });
 };
 
 
-
 export const updateUser = async (req, res) => {
-  const userToUpdate = await User.findById(req.params.id);
+  try {
+    const userToUpdate = await User.findById(req.params.id);
 
-  if (!userToUpdate) {
-    return res.status(404).json({ msg: "User not found" });
+    if (!userToUpdate) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    if (userToUpdate.role === "admin") {
+      return res.status(403).json({ msg: "Cannot modify admin" });
+    }
+
+    
+    if (req.user.role === "manager" && userToUpdate.role === "admin") {
+      return res.status(403).json({ msg: "Managers cannot edit admin" });
+    }
+
+    
+    if (req.body.name) {
+      userToUpdate.name = req.body.name;
+    }
+
+  
+    if (req.body.role && ["user", "manager"].includes(req.body.role)) {
+      userToUpdate.role = req.body.role;
+    }
+
+    userToUpdate.updatedBy = req.user.id;
+
+    await userToUpdate.save();
+
+    res.json({ msg: "User updated successfully" });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ msg: "Error updating user" });
   }
-
-  if (userToUpdate.role === "admin") {
-    return res.status(403).json({ msg: "Cannot modify admin" });
-  }
-
-  if (req.body.role && ["user", "manager"].includes(req.body.role)) {
-    userToUpdate.role = req.body.role;
-  }
-
-  await userToUpdate.save();
-
-  res.json({ msg: "User updated successfully" });
 };
 
 

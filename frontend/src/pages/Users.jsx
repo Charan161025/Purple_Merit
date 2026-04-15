@@ -4,149 +4,138 @@ import { useSelector } from "react-redux";
 
 const Users = () => {
   const [users, setUsers] = useState([]);
-  const [message, setMessage] = useState("");
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "user"
-  });
+  const [editingId, setEditingId] = useState(null);
+  const [editData, setEditData] = useState({ name: "", role: "user" });
 
   const { user } = useSelector((state) => state.auth);
 
+  console.log("🔥 FULL USER OBJECT:", user);
+
+  const role =
+    user?.role ||
+    user?.user?.role ||
+    user?.data?.role ||
+    "";
+
+  console.log("🔥 EXTRACTED ROLE:", role);
 
   const loadUsers = async () => {
-    const res = await API.get("/users");
-    setUsers(res.data);
+    try {
+      const res = await API.get("/users");
+      console.log("🔥 USERS DATA:", res.data);
+      setUsers(res.data);
+    } catch (err) {
+      console.log(" GET USERS ERROR:", err);
+    }
   };
 
   useEffect(() => {
     loadUsers();
   }, []);
 
-  
-  const createUser = async () => {
-    if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
-      setMessage("All fields are required");
-      return;
-    }
-
-    try {
-      const res = await API.post("/users", form);
-
-      setMessage(res.data.msg);
-
-      setForm({
-        name: "",
-        email: "",
-        password: "",
-        role: "user"
-      });
-
-      await loadUsers();
-
-      setTimeout(() => setMessage(""), 3000);
-
-    } catch (err) {
-      setMessage(err.response?.data?.msg || "Error creating user");
-    }
+  const startEdit = (u) => {
+    console.log(" START EDIT:", u);
+    setEditingId(u._id);
+    setEditData({ name: u.name, role: u.role });
   };
 
+  const saveEdit = async (id) => {
+    console.log(" SAVING:", id, editData);
+
+    try {
+      const res = await API.put(`/users/${id}`, editData);
+      console.log(" UPDATE RESPONSE:", res.data);
+
+      setEditingId(null);
+      loadUsers();
+    } catch (err) {
+      console.log(" UPDATE ERROR:", err.response || err);
+      alert(err.response?.data?.msg || "Update failed");
+    }
+  };
 
   const deleteUser = async (id) => {
-    try {
-      await API.delete(`/users/${id}`);
-      await loadUsers();
-    } catch (err) {
-      alert(err.response?.data?.msg || "Delete failed");
-    }
-  };
-
-  
-  const updateUser = async (id, role) => {
-    await API.put(`/users/${id}`, { role });
-    await loadUsers();
+    console.log("🗑 DELETE:", id);
+    await API.delete(`/users/${id}`);
+    loadUsers();
   };
 
   return (
     <div style={{ padding: "20px" }}>
       <h2>User Management</h2>
 
-      
-      {user?.role === "admin" && (
-        <div style={{
-          background: "#ffffffcc",
-          padding: "15px",
-          borderRadius: "10px",
-          marginBottom: "20px"
-        }}>
-          <h3>Create User</h3>
+      {users.map((u) => {
+        const userRole = u.role?.toLowerCase();
 
-          <input
-            placeholder="Name"
-            value={form.name}
-            onChange={(e)=>setForm({...form,name:e.target.value})}
-          />
-
-          <input
-            placeholder="Email"
-            value={form.email}
-            onChange={(e)=>setForm({...form,email:e.target.value})}
-          />
-
-          <input
-            placeholder="Password"
-            value={form.password}
-            onChange={(e)=>setForm({...form,password:e.target.value})}
-          />
-
-          <select
-            value={form.role}
-            onChange={(e)=>setForm({...form,role:e.target.value})}
+        return (
+          <div
+            key={u._id}
+            style={{
+              background: "#fff",
+              padding: "12px",
+              marginBottom: "10px",
+              borderRadius: "8px"
+            }}
           >
-            <option value="user">User</option>
-            <option value="manager">Manager</option>
-          </select>
+            {editingId === u._id ? (
+              <>
+                <input
+                  value={editData.name}
+                  onChange={(e) =>
+                    setEditData({ ...editData, name: e.target.value })
+                  }
+                />
 
-          <button onClick={createUser}>Create User</button>
+              
+                {console.log("🧠 CHECK:", role, "TARGET:", userRole)}
 
-          {message && (
-            <p style={{
-              marginTop: "10px",
-              color: message.toLowerCase().includes("success") ? "green" : "red"
-            }}>
-              {message}
-            </p>
-          )}
-        </div>
-      )}
+                {(role === "admin" || role === "manager") &&
+                  userRole !== "admin" && (
+                    <select
+                      value={editData.role}
+                      onChange={(e) =>
+                        setEditData({ ...editData, role: e.target.value })
+                      }
+                    >
+                      <option value="user">User</option>
+                      <option value="manager">Manager</option>
+                    </select>
+                  )}
 
-      {users.map((u) => (
-        <div key={u._id} style={{
-          background: "#ffffffcc",
-          padding: "10px",
-          marginBottom: "10px",
-          borderRadius: "8px"
-        }}>
-          <b>{u.name}</b> - {u.email} - {u.role}
+                <button onClick={() => saveEdit(u._id)}>Save</button>
+                <button onClick={() => setEditingId(null)}>Cancel</button>
+              </>
+            ) : (
+              <>
+                <b>{u.name}</b> - {u.email} - {u.role}
 
-          {user?.role === "admin" && user._id !== u._id && (
-            <>
-              <button onClick={() => deleteUser(u._id)}>
-                Delete
-              </button>
+                {console.log("👉 BUTTON CHECK:", role, userRole)}
 
-              <select
-                value={u.role}
-                onChange={(e)=>updateUser(u._id, e.target.value)}
-              >
-                <option value="user">User</option>
-                <option value="manager">Manager</option>
-              </select>
-            </>
-          )}
-        </div>
-      ))}
+                {(role === "admin" || role === "manager") &&
+                  userRole !== "admin" && (
+                    <button onClick={() => startEdit(u)}>Edit</button>
+                  )}
+
+                {role === "admin" && user?._id !== u._id && (
+                  <button onClick={() => deleteUser(u._id)}>Delete</button>
+                )}
+
+                <div style={{ fontSize: "12px", color: "gray" }}>
+                  Created:{" "}
+                  {u.createdAt
+                    ? new Date(u.createdAt).toLocaleString()
+                    : "N/A"}
+                  <br />
+                  Updated:{" "}
+                  {u.updatedAt
+                    ? new Date(u.updatedAt).toLocaleString()
+                    : "N/A"}
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };
