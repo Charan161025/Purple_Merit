@@ -4,33 +4,34 @@ import { useSelector } from "react-redux";
 
 const Profile = () => {
   const [profileData, setProfileData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   
   const auth = useSelector((state) => state.auth);
-  const currentUser = auth?.user?.user || auth?.user || {};
+  const userFromRedux = auth?.user?.user || auth?.user || {};
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchFreshProfile = async () => {
       try {
         
-        const res = await API.get(`/users/${currentUser._id}`);
+        const res = await API.get("/auth/profile"); 
         setProfileData(res.data);
       } catch (err) {
-        console.error("Error fetching profile:", err);
+        console.error("Error fetching fresh profile:", err);
         
-        setProfileData(currentUser);
+        setProfileData(userFromRedux);
+      } finally {
+        setLoading(false);
       }
     };
 
-    if (currentUser._id) {
-      fetchProfile();
-    }
-  }, [currentUser._id, currentUser]);
+    fetchFreshProfile();
+  }, []);
 
-  if (!profileData) return <div style={{ padding: "20px" }}>Loading...</div>;
+  if (loading) return <div style={{ padding: "20px" }}>Loading profile...</div>;
 
- 
-  const role = (profileData.role || "").toLowerCase().trim();
+  
+  const role = (profileData?.role || "").toLowerCase().trim();
   const isRegularUser = role === "user";
 
   return (
@@ -44,11 +45,11 @@ const Profile = () => {
         boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
         border: "1px solid #eee"
       }}>
-        <p><strong>Name:</strong> {profileData.name}</p>
-        <p><strong>Email:</strong> {profileData.email}</p>
-        <p><strong>Role:</strong> {profileData.role}</p>
+        <p><strong>Name:</strong> {profileData?.name}</p>
+        <p><strong>Email:</strong> {profileData?.email}</p>
+        <p><strong>Role:</strong> {profileData?.role}</p>
 
-        
+       
         {isRegularUser && (
           <div style={{ 
             marginTop: "20px", 
@@ -58,10 +59,10 @@ const Profile = () => {
             color: "#555" 
           }}>
             <p>
-              <strong>Created:</strong> {profileData.createdAt ? new Date(profileData.createdAt).toLocaleString() : "N/A"}
+              <strong>Created At:</strong> {profileData?.createdAt ? new Date(profileData.createdAt).toLocaleString() : "N/A"}
             </p>
             <p>
-              <strong>Updated:</strong> {profileData.updatedAt ? new Date(profileData.updatedAt).toLocaleString() : "N/A"}
+              <strong>Updated At:</strong> {profileData?.updatedAt ? new Date(profileData.updatedAt).toLocaleString() : "N/A"}
             </p>
           </div>
         )}
