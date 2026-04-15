@@ -101,7 +101,6 @@ const Users = () => {
               >
                 <option value="user">User</option>
                 <option value="manager">Manager</option>
-                <option value="admin">Admin</option>
               </select>
               <button type="submit" style={{ background: "green", color: "white" }}>Create</button>
             </form>
