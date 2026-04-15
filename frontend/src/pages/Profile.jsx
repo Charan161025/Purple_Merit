@@ -2,135 +2,99 @@ import { useEffect, useState } from "react";
 import API from "../api/axios";
 import { useSelector } from "react-redux";
 
-const Users = () => {
-  const [users, setUsers] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-  const [editData, setEditData] = useState({ name: "", role: "user" });
-
+const UserProfile = () => {
+  const [profileData, setProfileData] = useState(null);
   const auth = useSelector((state) => state.auth);
-  
-  const userObj = auth?.user?.user || auth?.user || {};
-  const role = (userObj.role || "").toLowerCase().trim();
-
-  const loadUsers = async () => {
-    try {
-      const res = await API.get("/users");
-      setUsers(res.data);
-    } catch (err) {
-      console.error("Fetch error:", err);
-    }
-  };
+  const currentUser = auth?.user?.user || auth?.user || {};
+  const role = (currentUser.role || "").toLowerCase().trim();
 
   useEffect(() => {
-    loadUsers();
-  }, []);
+    const loadProfile = async () => {
+      try {
+       
+        const res = await API.get(`/users/${currentUser._id}`);
+        setProfileData(res.data);
+      } catch (err) {
+        console.error("Fetch error:", err);
+      }
+    };
 
-  const startEdit = (u) => {
-    setEditingId(u._id);
-    setEditData({ name: u.name, role: u.role });
-  };
-
-  const saveEdit = async (id) => {
-    try {
-      await API.put(`/users/${id}`, editData);
-      setEditingId(null);
-      loadUsers();
-    } catch (err) {
-      alert("Update failed");
+    if (currentUser._id) {
+      loadProfile();
     }
-  };
+  }, [currentUser._id]);
 
-  
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     const date = new Date(dateString);
     return date.toLocaleString(); 
   };
 
+  if (!profileData) return <div style={{ padding: "20px" }}>Loading profile...</div>;
+
+  const isRegularUser = role === "user";
+
   return (
-    <div style={{ padding: "20px", fontFamily: "sans-serif" }}>
-      <h2>User Management</h2>
+    <div style={{ padding: "20px", fontFamily: "sans-serif", maxWidth: "600px" }}>
+      <h2>My Profile</h2>
       
-      <div style={{ background: "#eee", padding: "10px", marginBottom: "20px", borderRadius: "5px", fontSize: "12px" }}>
-        <strong>Debug Info:</strong> <br />
-        Logged in as: {userObj.email || "Unknown"} <br />
-        Detected Role: <span style={{ color: "red", fontWeight: "bold" }}>{role || "NOT FOUND"}</span>
-      </div>
+      <div
+        style={{
+          background: "#f4f4f4",
+          padding: "20px",
+          borderRadius: "8px",
+          display: "flex",
+          flexDirection: "column", 
+          gap: "15px",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.1)"
+        }}
+      >
+        <div style={{ fontSize: "18px" }}>
+          <strong>Name:</strong> {profileData.name}
+        </div>
+        
+        <div style={{ fontSize: "16px" }}>
+          <strong>Email:</strong> {profileData.email}
+        </div>
 
-      {users.map((u) => {
-        const targetRole = (u.role || "").toLowerCase().trim();
-        const canEdit = (role === "admin" || role === "manager") && targetRole !== "admin";
+        <div style={{ fontSize: "16px" }}>
+          <strong>Role:</strong> 
+          <span style={{ 
+            marginLeft: "10px", 
+            padding: "4px 12px", 
+            background: "#2c3e50", 
+            color: "white", 
+            borderRadius: "20px",
+            fontSize: "14px",
+            textTransform: "capitalize"
+          }}>
+            {profileData.role}
+          </span>
+        </div>
 
-        return (
-          <div
-            key={u._id}
-            style={{
-              background: "#f4f4f4",
-              padding: "15px",
-              marginBottom: "10px",
-              borderRadius: "8px",
-              display: "flex",
-              flexDirection: "column", 
-              gap: "10px"
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              {editingId === u._id ? (
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <input
-                    value={editData.name}
-                    onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                  />
-                  <select
-                    value={editData.role}
-                    onChange={(e) => setEditData({ ...editData, role: e.target.value })}
-                  >
-                    <option value="user">User</option>
-                    <option value="manager">Manager</option>
-                    {role === "admin" && <option value="admin">Admin</option>}
-                  </select>
-                  <button onClick={() => saveEdit(u._id)}>Save</button>
-                  <button onClick={() => setEditingId(null)}>Cancel</button>
-                </div>
-              ) : (
-                <>
-                  <span>
-                    <strong>{u.name}</strong> - {u.email} - <span style={{ color: "#2c3e50", fontWeight: "bold" }}>{u.role}</span>
-                  </span>
-                  
-                  {canEdit && (
-                    <button 
-                      onClick={() => startEdit(u)}
-                      style={{ padding: "5px 15px", cursor: "pointer", background: "#007bff", color: "white", border: "none", borderRadius: "4px" }}
-                    >
-                      Edit
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
-
-         
-            <div style={{ 
-              display: "flex", 
-              gap: "20px", 
-              fontSize: "12px", 
-              color: "#666", 
-              borderTop: "1px solid #ddd", 
-              paddingTop: "8px" 
-            }}>
-              <span>
-                <strong>Created At:</strong> {formatDate(u.createdAt)}
-              </span>
-              <span>
-                <strong>Updated At:</strong> {formatDate(u.updatedAt)}
-              </span>
-            </div>
+        
+        {isRegularUser && (
+          <div style={{ 
+            marginTop: "10px",
+            paddingTop: "15px", 
+            borderTop: "1px solid #ddd",
+            fontSize: "13px", 
+            color: "#666",
+            display: "flex",
+            flexDirection: "column",
+            gap: "5px"
+          }}>
+            <span>
+              <strong>Account Created:</strong> {formatDate(profileData.createdAt)}
+            </span>
+            <span>
+              <strong>Last Updated:</strong> {formatDate(profileData.updatedAt)}
+            </span>
           </div>
-        );
-      })}
+        )}
+      </div>
     </div>
   );
 };
 
-export default Users;
+export default UserProfile;
